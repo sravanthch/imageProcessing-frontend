@@ -29,7 +29,8 @@ export default function Home() {
     formData.append("file", selectedFile);
 
     try {
-      const response = await fetch("http://localhost:8080/api/process", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const response = await fetch(`${apiUrl}/api/process`, {
         method: "POST",
         body: formData,
       });
@@ -52,7 +53,7 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center p-12 bg-gray-50 text-gray-900">
       <h1 className="text-4xl font-bold mb-8 text-blue-600">Image Processor</h1>
-      
+
       <div className="w-full max-w-4xl bg-white p-8 rounded-xl shadow-lg">
         <div className="mb-8 flex flex-col items-center">
           <label className="block mb-4 text-lg font-medium">Upload an Image</label>
@@ -88,11 +89,10 @@ export default function Home() {
             <button
               onClick={handleProcess}
               disabled={!selectedFile || loading}
-              className={`px-8 py-3 rounded-full font-bold text-white transition-all transform hover:scale-105 ${
-                !selectedFile || loading
+              className={`px-8 py-3 rounded-full font-bold text-white transition-all transform hover:scale-105 ${!selectedFile || loading
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg hover:shadow-xl"
-              }`}
+                }`}
             >
               {loading ? "Processing..." : "Process Image →"}
             </button>
