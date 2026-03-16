@@ -22,6 +22,20 @@ export default function Home() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  // Hit backend root on load
+  React.useEffect(() => {
+    const pingBackend = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+        await fetch(apiUrl);
+        console.log("Backend pinged successfully");
+      } catch (err) {
+        console.error("Failed to ping backend:", err);
+      }
+    };
+    pingBackend();
+  }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
