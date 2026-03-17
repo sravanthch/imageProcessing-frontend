@@ -58,6 +58,10 @@ export default function Home() {
     let timer: NodeJS.Timeout;
     if (serverStatus === "connecting" && countdown > 0) {
       timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
+    } else if (serverStatus === "connecting" && countdown === 0) {
+      // Force 'online' state once countdown expires for smooth UX
+      setServerStatus("online");
+      setLaunchTimer(5);
     } else if (launchTimer !== null && launchTimer > 0) {
       timer = setInterval(() => setLaunchTimer(prev => prev !== null ? prev - 1 : null), 1000);
     } else if (launchTimer === 0) {
