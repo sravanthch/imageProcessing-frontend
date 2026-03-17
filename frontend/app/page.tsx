@@ -9,6 +9,11 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [serverStatus, setServerStatus] = useState<"connecting" | "online" | "error">("connecting");
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [countdown, setCountdown] = useState(50);
+  const [launchTimer, setLaunchTimer] = useState<number | null>(null);
 
   // Close tooltip if clicked exactly outside
   React.useEffect(() => {
@@ -25,16 +30,61 @@ export default function Home() {
   // Hit backend root on load
   React.useEffect(() => {
     const pingBackend = async () => {
+      const startTime = Date.now();
       try {
+        setServerStatus("connecting");
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+        
+        // Attempt ping
         await fetch(apiUrl);
-        console.log("Backend pinged successfully");
+        const duration = Date.now() - startTime;
+        
+        setServerStatus("online");
+        
+        // If it's a warm start (responded in < 3s), trigger the 5s launch timer
+        if (duration < 3000) {
+          setLaunchTimer(5);
+        }
       } catch (err) {
+        setServerStatus("error");
         console.error("Failed to ping backend:", err);
       }
     };
     pingBackend();
   }, []);
+
+  // Countdown & Launch Timer Logic
+  React.useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (serverStatus === "connecting" && countdown > 0) {
+      timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
+    } else if (launchTimer !== null && launchTimer > 0) {
+      timer = setInterval(() => setLaunchTimer(prev => prev !== null ? prev - 1 : null), 1000);
+    } else if (launchTimer === 0) {
+      // Only auto-dismiss for returning users (Warmup Overlay)
+      if (!showOnboarding) {
+        setShowOnboarding(false);
+      }
+      setLaunchTimer(null);
+    }
+    return () => clearInterval(timer);
+  }, [serverStatus, countdown, launchTimer]);
+
+  // Handle Onboarding Persistence
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const hasSeenOnboarding = localStorage.getItem("hasSeenOnboarding_v3");
+      if (!hasSeenOnboarding) {
+        setShowOnboarding(true);
+      }
+    }
+  }, []);
+
+  const closeOnboarding = () => {
+    setShowOnboarding(false);
+    localStorage.setItem("hasSeenOnboarding_v3", "true");
+  };
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -76,6 +126,7 @@ export default function Home() {
       setLoading(false);
     }
   };
+
 
   return (
     <main className="h-screen overflow-hidden bg-slate-950 text-slate-200 p-4 sm:p-6 font-sans transition-colors duration-300 flex flex-col justify-center">
@@ -221,7 +272,180 @@ export default function Home() {
             </div>
           </div>
         </div>
+
       </div>
+
+      {/* Dynamic Engagement Modal (Onboarding or Warmup) */}
+      {(showOnboarding || serverStatus === 'connecting' || launchTimer !== null) && (
+        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md transition-all duration-700 animate-in fade-in ${
+          !showOnboarding && serverStatus === 'online' && launchTimer === null ? 'opacity-0 invisible' : 'opacity-100 visible'
+        }`}>
+          <div className="relative max-w-lg w-full bg-slate-900/90 border border-slate-700/50 rounded-[2.5rem] p-4 sm:p-10 shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 duration-500 overflow-hidden">
+            {/* Background decorative glows */}
+            <div className={`absolute -top-32 -left-32 w-80 h-80 rounded-full blur-[100px] transition-all duration-1000 ${
+              !showOnboarding ? 'bg-blue-500/20' : 
+              currentSlide === 0 ? 'bg-blue-500/30' : 
+              currentSlide === 1 ? 'bg-emerald-500/30' : 'bg-purple-500/30'
+            }`}></div>
+            <div className={`absolute -bottom-32 -right-32 w-80 h-80 rounded-full blur-[100px] transition-all duration-1000 ${
+              !showOnboarding ? 'bg-emerald-500/20' :
+              currentSlide === 0 ? 'bg-emerald-500/30' : 
+              currentSlide === 1 ? 'bg-purple-500/30' : 'bg-blue-500/30'
+            }`}></div>
+
+            <div className="relative z-10">
+              {showOnboarding ? (
+                /* Full Onboarding Flow */
+                <>
+                  {/* Header */}
+                  <div className="flex justify-between items-center mb-10">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-all duration-500 ${currentSlide === 0 ? 'bg-blue-500' : currentSlide === 1 ? 'bg-emerald-500' : 'bg-purple-500'}`}>
+                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      </div>
+                      <h2 className="text-xl font-bold text-white tracking-tight">Onboarding</h2>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {[0, 1, 2].map((i) => (
+                        <div 
+                          key={i} 
+                          className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-white' : 'w-2 bg-slate-700'}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Slide Content */}
+                  <div className="min-h-[280px] flex flex-col justify-center">
+                    {currentSlide === 0 && (
+                      <div className="animate-in slide-in-from-right-8 duration-500">
+                        <h3 className="text-3xl font-extrabold text-white mb-4 leading-tight">Beyond Simple Filters</h3>
+                        <p className="text-slate-300 text-lg leading-relaxed font-light mb-6">
+                          Image processing is the art of <span className="text-blue-400 font-medium">mathematically transforming</span> visual data into useful insights.
+                        </p>
+                        <div className="flex gap-4 p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20">
+                          <svg className="w-6 h-6 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          <p className="text-blue-200/80 text-sm">Simplifying color data preserves structural metadata for better AI analysis.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {currentSlide === 1 && (
+                      <div className="animate-in slide-in-from-right-8 duration-500">
+                        <h3 className="text-3xl font-extrabold text-white mb-6 leading-tight">Master the Workflow</h3>
+                        <div className="space-y-4">
+                          {[
+                            { step: 1, text: "Upload your image to the canvas." },
+                            { step: 2, text: "Click 'Transform' to process the pixels." },
+                            { step: 3, text: "Compare individual results in high resolution." }
+                          ].map((item) => (
+                            <div key={item.step} className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-2xl border border-slate-700/30">
+                              <span className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-black border border-emerald-500/30">
+                                {item.step}
+                              </span>
+                              <p className="text-slate-200 font-medium">{item.text}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {currentSlide === 2 && (
+                      <div className="animate-in slide-in-from-right-8 duration-500">
+                        <h3 className="text-3xl font-extrabold text-white mb-4 leading-tight">Engine Calibration</h3>
+                        <p className="text-slate-300 text-lg leading-relaxed font-light mb-8">
+                          We're currently syncing with the cloud engine. This ensures precision transforms for your high-res files.
+                        </p>
+                        
+                        <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800 space-y-4">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-400 font-medium">Engine Status</span>
+                            {serverStatus === 'online' ? (
+                              <span className="text-emerald-400 flex items-center gap-1.5 font-bold animate-in fade-in zoom-in">
+                                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                                Online
+                              </span>
+                            ) : (
+                              <span className="text-blue-400 flex items-center gap-1.5 font-bold italic">
+                                Ready in {countdown}s
+                              </span>
+                            )}
+                          </div>
+                          <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-1000 ease-out ${
+                                serverStatus === 'online' ? 'bg-emerald-500' : 'bg-blue-500'
+                              }`} 
+                              style={{ width: serverStatus === 'online' ? '100%' : `${((50 - countdown) / 50) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Navigation */}
+                  <div className="flex gap-4 mt-10">
+                    {currentSlide > 0 && (
+                      <button onClick={() => setCurrentSlide(prev => prev - 1)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl transition-all border border-slate-700">Back</button>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (currentSlide < 2) setCurrentSlide(prev => prev + 1);
+                        else if (serverStatus === 'online') closeOnboarding();
+                      }}
+                      disabled={currentSlide === 2 && serverStatus !== 'online'}
+                      className={`flex-[2] py-4 rounded-2xl font-black text-lg transition-all shadow-xl active:scale-[0.98] ${
+                        currentSlide === 2 && serverStatus !== 'online' ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      {currentSlide < 2 ? 'Continue' : serverStatus === 'online' ? 'Begin Session' : 'Warming Up Engine...'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Returning User Quick Warmup Overlay */
+                <div className="animate-in fade-in zoom-in duration-500 text-center py-6">
+                  <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center shadow-2xl transition-all duration-700 mx-auto mb-8 ${launchTimer !== null ? 'bg-emerald-500 shadow-emerald-500/20 scale-110' : 'bg-gradient-to-br from-blue-500 to-emerald-500 shadow-blue-500/20 animate-bounce'}`}>
+                    {launchTimer !== null ? (
+                      <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    )}
+                  </div>
+                  <h3 className="text-3xl font-extrabold text-white mb-3">
+                    {launchTimer !== null ? 'System Ready' : 'Welcome Back'}
+                  </h3>
+                  <p className="text-slate-400 text-lg mb-10 font-light">
+                    {launchTimer !== null ? `Launching session in ${launchTimer}s...` : 'Calibrating engine for your session...'}
+                  </p>
+                  
+                  <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800 space-y-4 max-w-sm mx-auto shadow-inner">
+                    <div className="flex justify-between items-center text-xs text-slate-500 uppercase tracking-widest font-bold">
+                      <span>{launchTimer !== null ? 'Finalizing' : 'Syncing'}</span>
+                      <span className="text-blue-400">
+                        {launchTimer !== null ? '100%' : `${countdown}s remaining`}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-1000 ease-linear ${launchTimer !== null ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                        style={{ width: launchTimer !== null ? '100%' : `${((50 - countdown) / 50) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
