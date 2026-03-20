@@ -4,6 +4,7 @@ import React, { useState } from "react";
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -12,7 +13,7 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [serverStatus, setServerStatus] = useState<"connecting" | "online" | "error">("connecting");
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [countdown, setCountdown] = useState(50);
+  const [countdown, setCountdown] = useState(40);
   const [launchTimer, setLaunchTimer] = useState<number | null>(null);
 
   // Close tooltip if clicked exactly outside
@@ -93,10 +94,16 @@ export default function Home() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      const objectUrl = URL.createObjectURL(file);
       setSelectedFile(file);
-      setOriginalImage(URL.createObjectURL(file));
+      setOriginalImage(null);
       setProcessedImage(null);
       setError(null);
+      setUploadLoading(true);
+      setTimeout(() => {
+        setOriginalImage(objectUrl);
+        setUploadLoading(false);
+      }, 5000);
     }
   };
 
@@ -209,7 +216,15 @@ export default function Home() {
             {/* Original Image */}
             <div className="w-full lg:w-5/12 flex items-center justify-center h-full min-h-0">
               <div className="w-full h-full relative group rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center shadow-inner">
-                {originalImage ? (
+                {uploadLoading ? (
+                  <div className="text-center p-4 flex flex-col items-center gap-3">
+                    <svg className="animate-spin h-8 w-8 text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-xs text-slate-400 font-medium">Preparing image…</span>
+                  </div>
+                ) : originalImage ? (
                   <>
                     <img src={originalImage} alt="Original" className="w-full h-full object-contain p-2" />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -231,8 +246,8 @@ export default function Home() {
             <div className="w-full lg:w-2/12 flex flex-col items-center justify-center py-2 lg:py-0 relative shrink-0">
               <button
                 onClick={handleProcess}
-                disabled={!selectedFile || loading}
-                className={`relative px-6 py-3 w-full sm:w-auto lg:w-full rounded-xl font-bold text-sm text-white transition-all transform hover:scale-105 active:scale-95 shadow-xl ${!selectedFile || loading
+                disabled={!selectedFile || loading || uploadLoading}
+                className={`relative px-6 py-3 w-full sm:w-auto lg:w-full rounded-xl font-bold text-sm text-white transition-all transform hover:scale-105 active:scale-95 shadow-xl ${!selectedFile || loading || uploadLoading
                     ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
                     : "bg-gradient-to-br from-emerald-500 to-blue-600 hover:from-emerald-400 hover:to-blue-500 border border-emerald-400/30 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
                   }`}
@@ -255,8 +270,8 @@ export default function Home() {
             </div>
 
             {/* Processed Image */}
-            <div className="w-full lg:w-5/12 flex items-center justify-center h-full min-h-0">
-              <div className="w-full h-full relative group rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center shadow-inner">
+            <div className="w-full lg:w-5/12 flex flex-col items-center justify-center gap-3 h-full min-h-0">
+              <div className="w-full flex-1 relative group rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center shadow-inner min-h-0">
                 {processedImage ? (
                   <>
                     <img src={processedImage} alt="Processed" className="w-full h-full object-contain p-2" />
@@ -273,8 +288,34 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
+              {/* Download button — flush below processed image */}
+              {processedImage ? (
+                <a
+                  href={processedImage}
+                  download={`processed-${selectedFile?.name ?? "image.png"}`}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-400 hover:to-blue-500 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 border border-emerald-400/30 shrink-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Result
+                </a>
+              ) : (
+                <button
+                  disabled
+                  title="Process an image first"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-slate-800 text-slate-600 text-xs font-bold uppercase tracking-wider cursor-not-allowed border border-slate-700 shrink-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Result
+                </button>
+              )}
             </div>
           </div>
+
         </div>
 
       </div>
@@ -288,13 +329,11 @@ export default function Home() {
             {/* Background decorative glows */}
             <div className={`absolute -top-32 -left-32 w-80 h-80 rounded-full blur-[100px] transition-all duration-1000 ${
               !showOnboarding ? 'bg-blue-500/20' : 
-              currentSlide === 0 ? 'bg-blue-500/30' : 
-              currentSlide === 1 ? 'bg-emerald-500/30' : 'bg-purple-500/30'
+              currentSlide === 0 ? 'bg-blue-500/30' : 'bg-purple-500/30'
             }`}></div>
             <div className={`absolute -bottom-32 -right-32 w-80 h-80 rounded-full blur-[100px] transition-all duration-1000 ${
               !showOnboarding ? 'bg-emerald-500/20' :
-              currentSlide === 0 ? 'bg-emerald-500/30' : 
-              currentSlide === 1 ? 'bg-purple-500/30' : 'bg-blue-500/30'
+              currentSlide === 0 ? 'bg-emerald-500/30' : 'bg-blue-500/30'
             }`}></div>
 
             <div className="relative z-10">
@@ -302,9 +341,9 @@ export default function Home() {
                 /* Full Onboarding Flow */
                 <>
                   {/* Header */}
-                  <div className="flex justify-between items-center mb-10">
+                  <div className="flex justify-between items-center mb-6" >
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-all duration-500 ${currentSlide === 0 ? 'bg-blue-500' : currentSlide === 1 ? 'bg-emerald-500' : 'bg-purple-500'}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-all duration-500 ${currentSlide === 0 ? 'bg-blue-500' : 'bg-purple-500'}`}>
                         <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
@@ -312,7 +351,7 @@ export default function Home() {
                       <h2 className="text-xl font-bold text-white tracking-tight">Onboarding</h2>
                     </div>
                     <div className="flex gap-1.5">
-                      {[0, 1, 2].map((i) => (
+                      {[0, 1].map((i) => (
                         <div 
                           key={i} 
                           className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-white' : 'w-2 bg-slate-700'}`}
@@ -325,47 +364,38 @@ export default function Home() {
                   <div className="min-h-[280px] flex flex-col justify-center">
                     {currentSlide === 0 && (
                       <div className="animate-in slide-in-from-right-8 duration-500">
-                        <h3 className="text-3xl font-extrabold text-white mb-4 leading-tight">Beyond Simple Filters</h3>
-                        <p className="text-slate-300 text-lg leading-relaxed font-light mb-6">
-                          Image processing is the art of <span className="text-blue-400 font-medium">mathematically transforming</span> visual data into useful insights.
+                        <h3 className="text-2xl font-extrabold text-white mb-2 leading-tight">What is Image Processing?</h3>
+                        <p className="text-slate-300 text-sm leading-relaxed font-light mb-4">
+                          It is the art of <span className="text-blue-400 font-medium">mathematically transforming</span> visual data — converting RGB color images into grayscale, preserving structural detail for AI analysis.
                         </p>
-                        <div className="flex gap-4 p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20">
-                          <svg className="w-6 h-6 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                          <p className="text-blue-200/80 text-sm">Simplifying color data preserves structural metadata for better AI analysis.</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {currentSlide === 1 && (
-                      <div className="animate-in slide-in-from-right-8 duration-500">
-                        <h3 className="text-3xl font-extrabold text-white mb-6 leading-tight">Master the Workflow</h3>
-                        <div className="space-y-4">
+                        <div className="space-y-2.5">
                           {[
                             { step: 1, text: "Upload your image to the canvas." },
                             { step: 2, text: "Click 'Transform' to process the pixels." },
-                            { step: 3, text: "Compare individual results in high resolution." }
+                            { step: 3, text: "View the grayscale result side by side." },
+                            { step: 4, text: "Download the processed image if needed." },
                           ].map((item) => (
-                            <div key={item.step} className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-2xl border border-slate-700/30">
-                              <span className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-black border border-emerald-500/30">
+                            <div key={item.step} className="flex items-center gap-3 bg-slate-800/40 px-4 py-3 rounded-2xl border border-slate-700/30">
+                              <span className="w-7 h-7 shrink-0 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-black border border-emerald-500/30">
                                 {item.step}
                               </span>
-                              <p className="text-slate-200 font-medium">{item.text}</p>
+                              <p className="text-slate-200 text-sm font-medium">{item.text}</p>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {currentSlide === 2 && (
+                    {currentSlide === 1 && (
                       <div className="animate-in slide-in-from-right-8 duration-500">
-                        <h3 className="text-3xl font-extrabold text-white mb-4 leading-tight">Engine Calibration</h3>
+                        <h3 className="text-3xl font-extrabold text-white mb-4 leading-tight">Getting Ready</h3>
                         <p className="text-slate-300 text-lg leading-relaxed font-light mb-8">
-                          We're currently syncing with the cloud engine. This ensures precision transforms for your high-res files.
+                          We're warming up the processing server. This usually takes a few seconds — hang tight!
                         </p>
                         
                         <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800 space-y-4">
                           <div className="flex justify-between items-center text-sm">
-                            <span className="text-slate-400 font-medium">Engine Status</span>
+                            <span className="text-slate-400 font-medium">Server Status</span>
                             {serverStatus === 'online' ? (
                               <span className="text-emerald-400 flex items-center gap-1.5 font-bold animate-in fade-in zoom-in">
                                 <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
@@ -382,7 +412,7 @@ export default function Home() {
                               className={`h-full transition-all duration-1000 ease-out ${
                                 serverStatus === 'online' ? 'bg-emerald-500' : 'bg-blue-500'
                               }`} 
-                              style={{ width: serverStatus === 'online' ? '100%' : `${((50 - countdown) / 50) * 100}%` }}
+                              style={{ width: serverStatus === 'online' ? '100%' : `${((40 - countdown) / 40) * 100}%` }}
                             />
                           </div>
                         </div>
@@ -391,21 +421,21 @@ export default function Home() {
                   </div>
 
                   {/* Navigation */}
-                  <div className="flex gap-4 mt-10">
+                  <div className="flex gap-4 mt-8">
                     {currentSlide > 0 && (
                       <button onClick={() => setCurrentSlide(prev => prev - 1)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl transition-all border border-slate-700">Back</button>
                     )}
                     <button
                       onClick={() => {
-                        if (currentSlide < 2) setCurrentSlide(prev => prev + 1);
+                        if (currentSlide < 1) setCurrentSlide(prev => prev + 1);
                         else if (serverStatus === 'online') closeOnboarding();
                       }}
-                      disabled={currentSlide === 2 && serverStatus !== 'online'}
+                      disabled={currentSlide === 1 && serverStatus !== 'online'}
                       className={`flex-[2] py-4 rounded-2xl font-black text-lg transition-all shadow-xl active:scale-[0.98] ${
-                        currentSlide === 2 && serverStatus !== 'online' ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-slate-100'
+                        currentSlide === 1 && serverStatus !== 'online' ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-slate-100'
                       }`}
                     >
-                      {currentSlide < 2 ? 'Continue' : serverStatus === 'online' ? 'Begin Session' : 'Warming Up Engine...'}
+                      {currentSlide < 1 ? 'Continue' : serverStatus === 'online' ? 'Begin Session' : 'Warming Up Engine...'}
                     </button>
                   </div>
                 </>
@@ -427,7 +457,7 @@ export default function Home() {
                     {launchTimer !== null ? 'System Ready' : 'Welcome Back'}
                   </h3>
                   <p className="text-slate-400 text-lg mb-10 font-light">
-                    {launchTimer !== null ? `Launching session in ${launchTimer}s...` : 'Calibrating engine for your session...'}
+                    {launchTimer !== null ? `Launching session in ${launchTimer}s...` : 'Starting engine for your session...'}
                   </p>
                   
                   <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800 space-y-4 max-w-sm mx-auto shadow-inner">
@@ -440,7 +470,7 @@ export default function Home() {
                     <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
                       <div 
                         className={`h-full transition-all duration-1000 ease-linear ${launchTimer !== null ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                        style={{ width: launchTimer !== null ? '100%' : `${((50 - countdown) / 50) * 100}%` }}
+                        style={{ width: launchTimer !== null ? '100%' : `${((40 - countdown) / 40) * 100}%` }}
                       />
                     </div>
                   </div>
