@@ -15,6 +15,18 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [countdown, setCountdown] = useState(40);
   const [launchTimer, setLaunchTimer] = useState<number | null>(null);
+  const [processingMessage, setProcessingMessage] = useState("Initializing...");
+
+  const engagementMessages = [
+    "Analyzing image structure...",
+    "Scanning pixel data...",
+    "Applying adaptive filters...",
+    "Optimizing color channels...",
+    "Generating grayscale map...",
+    "Finalizing transformation...",
+    "Verifying output quality...",
+    "Almost there..."
+  ];
 
   // Close tooltip if clicked exactly outside
   React.useEffect(() => {
@@ -91,6 +103,20 @@ export default function Home() {
   };
 
 
+  // Cycle processing messages
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (loading) {
+      let index = 0;
+      setProcessingMessage(engagementMessages[0]);
+      interval = setInterval(() => {
+        index = (index + 1) % engagementMessages.length;
+        setProcessingMessage(engagementMessages[index]);
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -118,10 +144,15 @@ export default function Home() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await fetch(`${apiUrl}/api/process`, {
-        method: "POST",
-        body: formData,
-      });
+      
+      // Ensure it takes at least 10 seconds to keep user engaged as requested
+      const [response] = await Promise.all([
+        fetch(`${apiUrl}/api/process`, {
+          method: "POST",
+          body: formData,
+        }),
+        new Promise(resolve => setTimeout(resolve, 10000))
+      ]);
 
       if (!response.ok) {
         throw new Error("Failed to process image");
@@ -266,6 +297,7 @@ export default function Home() {
                   </span>
                 )}
               </button>
+              {loading && <p className="mt-2 text-emerald-400 text-[10px] text-center font-medium animate-pulse">{processingMessage}</p>}
               {error && <p className="mt-2 text-rose-400 text-[10px] text-center px-3 py-1.5 rounded-lg bg-rose-400/10 border border-rose-400/20">{error}</p>}
             </div>
 
