@@ -110,9 +110,13 @@ export default function Home() {
       let index = 0;
       setProcessingMessage(engagementMessages[0]);
       interval = setInterval(() => {
-        index = (index + 1) % engagementMessages.length;
-        setProcessingMessage(engagementMessages[index]);
-      }, 2000);
+        if (index < engagementMessages.length - 1) {
+          index++;
+          setProcessingMessage(engagementMessages[index]);
+        } else {
+          clearInterval(interval);
+        }
+      }, 3000);
     }
     return () => clearInterval(interval);
   }, [loading]);
