@@ -127,7 +127,7 @@ export default function Home() {
                 setShowTimeoutModal(true);
                 setLoading(false);
               }
-            }, 10000); // 10 seconds timeout after 'Almost there...' message appears
+            }, 11000); // 10 seconds timeout after 'Almost there...' message appears
           }
         } else {
           clearInterval(interval);
