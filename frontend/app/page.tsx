@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -16,6 +16,8 @@ export default function Home() {
   const [countdown, setCountdown] = useState(40);
   const [launchTimer, setLaunchTimer] = useState<number | null>(null);
   const [processingMessage, setProcessingMessage] = useState("Initializing...");
+  const [showTimeoutModal, setShowTimeoutModal] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const engagementMessages = [
     "Analyzing image structure...",
@@ -103,22 +105,40 @@ export default function Home() {
   };
 
 
-  // Cycle processing messages
-  React.useEffect(() => {
+  // Cycle processing messages & Handle Timeout relative to messages
+  useEffect(() => {
     let interval: NodeJS.Timeout;
+    let timeoutTimer: NodeJS.Timeout;
+
     if (loading) {
       let index = 0;
       setProcessingMessage(engagementMessages[0]);
+
       interval = setInterval(() => {
         if (index < engagementMessages.length - 1) {
           index++;
           setProcessingMessage(engagementMessages[index]);
+          
+          // If we just reached 'Almost there...' (index 7), start the 10s countdown
+          if (index === engagementMessages.length - 1) {
+            timeoutTimer = setTimeout(() => {
+              if (loading) {
+                abortControllerRef.current?.abort();
+                setShowTimeoutModal(true);
+                setLoading(false);
+              }
+            }, 10000); // 10 seconds timeout after 'Almost there...' message appears
+          }
         } else {
           clearInterval(interval);
         }
       }, 3000);
     }
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeoutTimer);
+    };
   }, [loading]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,18 +162,24 @@ export default function Home() {
 
     setLoading(true);
     setError(null);
+    setShowTimeoutModal(false);
 
     const formData = new FormData();
     formData.append("file", selectedFile);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
       
-      // Ensure it takes at least 10 seconds to keep user engaged as requested
+      // Keep user engaged for at least 10s as requested previously
+      // The timeout is now handled in the useEffect based on message cycle
       const [response] = await Promise.all([
         fetch(`${apiUrl}/api/process`, {
           method: "POST",
           body: formData,
+          signal: controller.signal
         }),
         new Promise(resolve => setTimeout(resolve, 10000))
       ]);
@@ -165,11 +191,17 @@ export default function Home() {
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setProcessedImage(url);
-    } catch (err) {
-      setError("Error processing image. Is the backend running?");
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        // Modal visibility is handled by the useEffect timer
+        console.log("Request aborted due to timeout");
+      } else {
+        setError("Error processing image. Is the backend running?");
+      }
       console.error(err);
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -512,6 +544,58 @@ export default function Home() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Timeout Error Modal */}
+      {showTimeoutModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="relative max-w-md w-full bg-slate-900 border border-rose-500/20 rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-500 overflow-hidden text-center">
+            {/* Background decorative glows */}
+            <div className="absolute -top-24 -left-24 w-64 h-64 bg-rose-500/10 rounded-full blur-[80px]"></div>
+            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-amber-500/10 rounded-full blur-[80px]"></div>
+
+            <div className="relative z-10">
+              <div className="w-20 h-20 rounded-[2rem] bg-rose-500 shadow-lg shadow-rose-500/20 flex items-center justify-center mx-auto mb-6 transform rotate-12">
+                <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+
+              <h2 className="text-2xl font-black text-white mb-3 tracking-tight">Processing timed out</h2>
+              <p className="text-slate-400 text-base mb-8 font-light leading-relaxed">
+                The image is taking longer than expected to process. This could be due to server load or network issues. 
+                <span className="block mt-2 text-rose-400 font-medium">Please try refreshing or try again after sometime.</span>
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => {
+                    setShowTimeoutModal(false);
+                    handleProcess();
+                  }}
+                  className="py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl transition-all border border-slate-700 active:scale-95"
+                >
+                  Try Again
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="py-4 bg-white text-slate-900 font-black rounded-2xl transition-all shadow-xl hover:bg-slate-100 active:scale-95"
+                >
+                  Refresh
+                </button>
+              </div>
+              
+              <button 
+                onClick={() => {
+                  setShowTimeoutModal(false);
+                  setLoading(false);
+                }}
+                className="mt-6 text-slate-500 hover:text-slate-300 text-xs font-medium uppercase tracking-widest transition-colors"
+              >
+                Dismiss
+              </button>
             </div>
           </div>
         </div>
