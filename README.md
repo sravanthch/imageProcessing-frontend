@@ -24,17 +24,17 @@ This project demonstrates a robust multi-language microservice-style architectur
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Tech Stack & Details
 
 ### Frontend
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
-- **Library**: [React 19](https://react.dev/)
-- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Library**: [React 19](https://react.dev/) - Utilizing the latest concurrent rendering features.
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/) - Modern, utility-first styling with native CSS variables.
+- **Language**: [TypeScript](https://www.typescriptlang.org/) - Ensuring type safety across the UI.
 
 ### Backend & Core
-- **Orchestration**: [Spring Boot 3.2.2](https://spring.io/projects/spring-boot) (Java 17)
-- **Computer Vision**: [OpenCV](https://opencv.org/) for Python
+- **Orchestration**: [Spring Boot 3.2.2](https://spring.io/projects/spring-boot) (Java 17) - Handles multi-part file uploads and script execution.
+- **Computer Vision**: [OpenCV](https://opencv.org/) for Python - The core engine for Canny Edge Detection.
 - **Build Tools**: [Maven](https://maven.apache.org/)
 
 ---
@@ -60,7 +60,7 @@ This project demonstrates a robust multi-language microservice-style architectur
     ```
 
 3.  **Backend Setup**:
-    (Navigate to the backend repository)
+    *(Navigate to the backend repository folder)*
     ```bash
     mvn clean install
     ```
@@ -69,6 +69,7 @@ This project demonstrates a robust multi-language microservice-style architectur
 
 1.  **Start the Frontend**:
     ```bash
+    cd imageProcessing-frontend/frontend
     npm run dev
     ```
     The app will be available at `http://localhost:3000`.
@@ -88,6 +89,19 @@ Create a `.env.local` in the `frontend` directory:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
+
+---
+
+## 🚀 Deployment
+
+### Frontend (Vercel)
+The easiest way to deploy the frontend is via [Vercel](https://vercel.com/new).
+1. Connect your repository to Vercel.
+2. Configure the `NEXT_PUBLIC_API_URL` environment variable to point to your deployed backend.
+3. Vercel will automatically detect the Next.js project and deploy it.
+
+### Backend
+The backend can be containerized using a **Dockerfile** (as it requires both Java and Python environments) and deployed to platforms like **Heroku**, **Render**, or **AWS ECS**.
 
 ---
 
